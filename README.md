@@ -33,6 +33,6 @@ Idiomes: català i castellà (selector CA/ES; per defecte, l'idioma del navegado
 6. Entra a `https://sondeo.luisfs.com/admin`, crea el teu codi i entra a `/`.
 
 ## Seguretat
-- 8 codis erronis cada 15 min per IP; sessions de professor de 12 h; CSP que només permet scripts propis.
+- 5 intents erronis (codi d'invitació o contrasenya d'/admin) cada 15 min per IP; sessions de professor de 12 h; CSP que només permet scripts propis.
 - Límits de ritme de missatges, de mida, de sessions per codi i d'alumnes per sessió.
 - Requereix Node 22 (usa el SQLite integrat, sense dependències natives).

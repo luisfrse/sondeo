@@ -51,7 +51,8 @@ function lim(max, ms){
            fail: ip => { if (m.size > 20000) m.clear(); const e = m.get(ip); if (!e || Date.now() - e.t > ms) m.set(ip, { n: 1, t: Date.now() }); else e.n++; },
            ok: ip => m.delete(ip) };
 }
-const limAcces = lim(8, 15 * 60e3);
+const limAcces = lim(5, 15 * 60e3);
+const limAdmin = lim(5, 15 * 60e3);   // contrasenyes d'/admin errònies per IP
 const ipOf = req => { const p = String(req.headers['x-forwarded-for'] || '').split(',').map(x => x.trim()).filter(Boolean); return p.length ? p[p.length - 1] : (req.socket.remoteAddress || '?'); };
 function closeSessionsOf(codiId, why){
   for (const [t, s] of tokens) if (s.codiId === codiId) tokens.delete(t);
@@ -211,7 +212,10 @@ const server = http.createServer(async (req, res) => {
     if (p === '/admin' || p.startsWith('/api/admin/')){
       const h = req.headers.authorization || '';
       let okA = false;
+      const ipA = ipOf(req);
+      if (limAdmin.blocked(ipA)){ res.writeHead(429, { 'Content-Type': 'text/plain' }); return res.end('Massa intents. Espera uns minuts.'); }
       if (h.startsWith('Basic ')){ const d = Buffer.from(h.slice(6), 'base64').toString('utf8'); const i = d.indexOf(':'); okA = safeEq(crypto.createHash('sha256').update(i >= 0 ? d.slice(i + 1) : d).digest('hex'), crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex')); }
+      if (okA) limAdmin.ok(ipA); else if (h) limAdmin.fail(ipA);   // només compta si s'ha enviat una contrasenya
       if (!okA){ res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sondeo (administrador)", charset="UTF-8"', 'Content-Type': 'text/plain' }); return res.end('Cal contrasenya'); }
       if (p === '/admin'){ res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(fs.readFileSync(path.join(__dirname, 'views', 'admin.html'))); }
       if (p === '/api/admin/codis' && req.method === 'GET') return json(res, 200, db.prepare('SELECT * FROM codis ORDER BY id DESC').all().map(rowPub));
@@ -267,7 +271,12 @@ const server = http.createServer(async (req, res) => {
 });
 
 /* ---------- WebSocket ---------- */
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 20000 });
+/* només s'accepten connexions des del mateix origen (els navegadors sempre envien Origin) */
+function originOk(req){
+  const o = req.headers.origin; if (!o) return true;           // clients que no són navegador
+  try { return new URL(o).host === String(req.headers['x-forwarded-host'] || req.headers.host).split(',')[0].trim(); } catch (_) { return false; }
+}
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 20000, verifyClient: info => originOk(info.req) });
 wss.on('connection', ws => {
   let se = null, isHost = false, cid = null, bucket = 30, lastTick = Date.now();
   ws.on('message', raw => {
