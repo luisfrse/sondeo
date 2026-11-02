@@ -1,0 +1,29 @@
+:root{--night:#0d1a2a;--deep:#1c3a5c;--sea:#3b6ea5;--accent:#b08be0;--accent-ink:#36005a;--ok:#2ecc71;--bad:#e5645a;--line:rgba(255,255,255,.16);--muted:#a9b8cb;--card:rgba(255,255,255,.07);--radius:18px}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100dvh;font-family:Lato,system-ui,sans-serif;color:#eef3fa;background:radial-gradient(1200px 700px at 20% -10%,var(--deep),var(--night) 70%) fixed;line-height:1.45}
+h1,h2,h3{font-family:Roboto,Lato,sans-serif;margin:0;line-height:1.2}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 20px;border-radius:99px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:700;cursor:pointer;transition:transform .12s,filter .15s}
+.btn:hover{filter:brightness(1.07)}.btn:active{transform:scale(.97)}
+.btn.ghost{background:transparent;color:#fff;border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn.danger{background:transparent;color:#ffb3ad;border:1.5px solid rgba(229,100,90,.5)}
+.btn.sm{min-height:34px;padding:4px 14px;font-size:.9rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid var(--line);background:rgba(0,0,0,.25);outline:0}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:84px}
+label.l{display:block;font-size:.82rem;color:var(--muted);margin:10px 0 4px}
+.muted{color:var(--muted)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px clamp(14px,3vw,32px)}
+.top h1{font-size:1.2rem}
+.wrap{max-width:980px;margin:0 auto;padding:0 clamp(14px,3vw,24px) 60px}
+.pill{font-size:.82rem;padding:4px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.pill.on{background:rgba(46,204,113,.18);border-color:var(--ok);color:#fff}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.lang button{background:transparent;border:0;color:var(--muted);padding:4px 12px;cursor:pointer;font-weight:700;font-size:.85rem}
+.lang button.on{background:var(--accent);color:var(--accent-ink)}
