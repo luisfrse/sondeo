@@ -163,6 +163,9 @@ function origin(req){
 }
 const json = (res, code, o) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(o)); };
 const safeEq = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+/* Token d'API opcional (nomes per a l'API de codis d'invitacio): Authorization: Bearer <ADMIN_API_TOKEN>. Desactivat si no existeix o te menys de 24 caracters. */
+const ADMIN_API_TOKEN = (process.env.ADMIN_API_TOKEN || '').length >= 24 ? process.env.ADMIN_API_TOKEN : '';
+const tokenOk = (h) => safeEq(crypto.createHash('sha256').update(h.slice(7).trim()).digest('hex'), crypto.createHash('sha256').update(ADMIN_API_TOKEN).digest('hex'));
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -214,7 +217,9 @@ const server = http.createServer(async (req, res) => {
       let okA = false;
       const ipA = ipOf(req);
       if (limAdmin.blocked(ipA)){ res.writeHead(429, { 'Content-Type': 'text/plain' }); return res.end('Massa intents. Espera uns minuts.'); }
-      if (h.startsWith('Basic ')){ const d = Buffer.from(h.slice(6), 'base64').toString('utf8'); const i = d.indexOf(':'); okA = safeEq(crypto.createHash('sha256').update(i >= 0 ? d.slice(i + 1) : d).digest('hex'), crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex')); }
+      const viaTok = !!ADMIN_API_TOKEN && /^Bearer /i.test(h) && (p === '/api/admin/codis' || /^\/api\/admin\/codis\/\d+$/.test(p));   // token nomes per a l'API de codis
+      if (viaTok) okA = tokenOk(h);
+      else if (h.startsWith('Basic ')){ const d = Buffer.from(h.slice(6), 'base64').toString('utf8'); const i = d.indexOf(':'); okA = safeEq(crypto.createHash('sha256').update(i >= 0 ? d.slice(i + 1) : d).digest('hex'), crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex')); }
       if (okA) limAdmin.ok(ipA); else if (h) limAdmin.fail(ipA);   // només compta si s'ha enviat una contrasenya
       if (!okA){ res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sondeo (administrador)", charset="UTF-8"', 'Content-Type': 'text/plain' }); return res.end('Cal contrasenya'); }
       if (p === '/admin'){ res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(fs.readFileSync(path.join(__dirname, 'views', 'admin.html'))); }
