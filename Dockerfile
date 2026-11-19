@@ -2,7 +2,7 @@ FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
-COPY server.js ./
+COPY server.js control-sso.js ./
 COPY views ./views
 COPY public ./public
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data

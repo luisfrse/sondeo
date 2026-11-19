@@ -35,6 +35,12 @@ const normCodi = t => String(t == null ? '' : t).toUpperCase().replace(/[^A-Z0-9
 const fmtCodi = c => c.length === 10 ? c.slice(0, 5) + '-' + c.slice(5) : c;
 const estat = f => f.revocat ? 'revocat' : (f.caduca && f.caduca < new Date().toISOString().slice(0, 10) ? 'caducat' : 'actiu');
 
+/* sessio d'administrador per cookie (l'obre l'acces unic de Control; convisqui amb la contrasenya de sempre) */
+const CONTROL_SSO = require('./control-sso').createVerifier(process.env.CONTROL_SSO_SECRET || '');
+const ADMIN_SES_MS = 12 * 3600 * 1000, adminSes = new Map();
+const adminSesOk = req => { const m = /(?:^|;\s*)asid=([^;]+)/.exec(req.headers.cookie || ''); const t = m ? decodeURIComponent(m[1]) : ''; const e = t && adminSes.get(t); if (!e) return false; if (e < Date.now()){ adminSes.delete(t); return false; } return true; };
+setInterval(() => { const n = Date.now(); for (const [t, e] of adminSes) if (e < n) adminSes.delete(t); }, 3600 * 1000).unref();
+
 /* sessions de professor (token en memòria, 12 h) */
 const tokens = new Map();   // token -> { codiId, etiqueta, exp }
 function tokenSession(h){
@@ -213,14 +219,29 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { code, token: se.hostToken });
     }
 
+    /* --- acces unic des de Control (enllac signat d'un sol us; la contrasenya segueix funcionant) --- */
+    if (p === '/api/control/sso' && req.method === 'GET'){
+      if (!process.env.CONTROL_SSO_SECRET) return json(res, 404, { err: 'notfound' });
+      const ipS = ipOf(req);
+      if (limAdmin.blocked(ipS)) return json(res, 429, { err: 'rate' });
+      const rs = CONTROL_SSO(url.searchParams.get('t') || '');
+      if (!rs.ok){ limAdmin.fail(ipS); return json(res, 403, { err: 'sso' }); }
+      limAdmin.ok(ipS);
+      const ts = crypto.randomBytes(24).toString('hex'); adminSes.set(ts, Date.now() + ADMIN_SES_MS);
+      const httpsS = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+      res.writeHead(302, { Location: '/admin', 'Set-Cookie': 'asid=' + ts + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ADMIN_SES_MS / 1000) + (httpsS ? '; Secure' : ''), 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+
     /* --- administració (Basic auth amb ADMIN_PASSWORD) --- */
     if (p === '/admin' || p.startsWith('/api/admin/')){
       const h = req.headers.authorization || '';
-      let okA = false;
+      let okA = adminSesOk(req);      // sessio oberta per l'acces unic de Control
       const ipA = ipOf(req);
       if (limAdmin.blocked(ipA)){ res.writeHead(429, { 'Content-Type': 'text/plain' }); return res.end('Massa intents. Espera uns minuts.'); }
       const viaTok = !!ADMIN_API_TOKEN && /^Bearer /i.test(h) && (p === '/api/admin/codis' || /^\/api\/admin\/codis\/\d+$/.test(p));   // token nomes per a l'API de codis
-      if (viaTok) okA = tokenOk(h);
+      if (okA) { /* ja autenticat per cookie */ }
+      else if (viaTok) okA = tokenOk(h);
       else if (h.startsWith('Basic ')){ const d = Buffer.from(h.slice(6), 'base64').toString('utf8'); const i = d.indexOf(':'); okA = safeEq(crypto.createHash('sha256').update(i >= 0 ? d.slice(i + 1) : d).digest('hex'), crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex')); }
       if (okA) limAdmin.ok(ipA); else if (h) limAdmin.fail(ipA);   // només compta si s'ha enviat una contrasenya
       if (!okA){ res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Sondeo (administrador)", charset="UTF-8"', 'Content-Type': 'text/plain' }); return res.end('Cal contrasenya'); }

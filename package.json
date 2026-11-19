@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/token.js"
+    "test": "node test/token.js && node test/control-sso.js",
+    "test:control-sso": "node test/control-sso.js"
   },
   "keywords": [],
   "author": "",
