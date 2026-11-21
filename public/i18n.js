@@ -7,7 +7,7 @@
       edit_title:'Sondeo · Preparar sessió', badge:'Participació en directe',
       intro:'Crea les diapositives, comença la sessió i els alumnes participen des del mòbil escanejant el QR. No es guarda cap nom: les respostes són anònimes i s\'esborren en acabar.',
       t_poll:'Votació', t_nube:'Núvol de paraules', t_text:'Resposta oberta', t_escala:'Escala 1-5', t_preguntes:'Mur de preguntes',
-      add_poll:'+ Votació', add_nube:'+ Núvol de paraules', add_text:'+ Resposta oberta', add_escala:'+ Escala 1-5', add_preguntes:'+ Mur de preguntes',
+      add_poll:'Votació', add_nube:'Núvol de paraules', add_text:'Resposta oberta', add_escala:'Escala 1-5', add_preguntes:'Mur de preguntes',
       pw_label:'Contrasenya de professor', start:'Començar sessió', export:'Exportar', import:'Importar', example:'Carregar exemple',
       saved_note:'Les diapositives es guarden en aquest navegador. Exporta un fitxer si vols usar-les en un altre ordinador.',
       question:'Pregunta', opts_label:'Opcions (una per línia, de 2 a 10)', max_words:'Paraules màximes per alumne', lo_label:'Etiqueta de l\'1', hi_label:'Etiqueta del 5',
@@ -15,7 +15,7 @@
       prev:'Anterior', next:'Següent', close_resp:'Tancar respostes', open_resp:'Obrir respostes', clear:'Esborrar respostes', auto:'Obrir en canviar',
       fs:'Pantalla completa', end:'Acabar sessió', qr_alt:'Codi QR per entrar a la sessió',
       confirm_clear:'Esborrar les respostes d\'aquesta diapositiva?', confirm_end:'Acabar la sessió? S\'esborraran totes les respostes.',
-      n_students:'{n} alumnes', n_student1:'1 alumne', st_open:'● Respostes obertes', st_closed:'○ Respostes tancades',
+      n_students:'{n} alumnes', n_student1:'1 alumne', st_open:'Respostes obertes', st_closed:'Respostes tancades',
       n_part:'{n} participants', n_part1:'1 participant', mean:'Mitjana {v}', mean_none:'Mitjana –',
       hidden:'(amagat)', hide:'Amagar', show:'Mostrar', highlight:'Destacar', done:'Respost', undone:'Desmarcar', votes:'{n} vots', no_q:'Encara no hi ha preguntes.',
       lang:'Idioma',
@@ -31,11 +31,11 @@
       /* alumne */
       enter_code:'Introdueix el codi', code_help:'El veus a la pantalla del professor.', enter:'Entrar', code_bad:'Aquest codi no existeix.',
       connecting:'Connectant…', code_pill:'Codi {c}', reconnecting:'Reconnectant…', closed:'Tancada',
-      waiting:'Esperant el professor…', sent:'Resposta enviada ✓', vote_closed:'Votació tancada', closed_msg:'El professor ha tancat les respostes d\'aquesta pregunta.', next_wait:'Espera la propera pregunta.',
-      sent_change:'Resposta enviada ✓  (pots canviar-la)', word_n:'Paraula {n}', send:'Enviar', update:'Actualitzar', sent_ok:'Enviat ✓',
-      write_ph:'Escriu la teva resposta…', sent_msgs:'Enviat ✓  ({n}/3 missatges; pots enviar-ne més)', max_msgs:'Has arribat al màxim de missatges.',
+      waiting:'Esperant el professor…', sent:'Resposta enviada', vote_closed:'Votació tancada', closed_msg:'El professor ha tancat les respostes d\'aquesta pregunta.', next_wait:'Espera la propera pregunta.',
+      sent_change:'Resposta enviada (pots canviar-la)', word_n:'Paraula {n}', send:'Enviar', update:'Actualitzar', sent_ok:'Enviat',
+      write_ph:'Escriu la teva resposta…', sent_msgs:'Enviat ({n}/3 missatges; pots enviar-ne més)', max_msgs:'Has arribat al màxim de missatges.',
       n_answers:'{n} respostes', n_answer1:'1 resposta',
-      ask_ph:'Escriu la teva pregunta…', ask_send:'Enviar pregunta', ask_left:'Pots fer {n} pregunta(es) més.', ask_none:'Has fet el màxim de preguntes (3).', vote:'Vot', voted:'Votat', own:'La teva pregunta', answered:'Respost ✓',
+      ask_ph:'Escriu la teva pregunta…', ask_send:'Enviar pregunta', ask_left:'Pots fer {n} pregunta(es) més.', ask_none:'Has fet el màxim de preguntes (3).', vote:'Vot', voted:'Votat', own:'La teva pregunta', answered:'Respost',
       e_notfound:'Aquesta sessió no existeix', e_full:'Sessió plena', e_ended:'La sessió ha acabat', thanks:'Gràcies per participar!',
       example_slides:[
         { type:'poll', q:'Com et sents avui?', opts:['Genial','Bé','Normal','Cansat/da'] },
@@ -50,7 +50,7 @@
       edit_title:'Sondeo · Preparar sesión', badge:'Participación en directo',
       intro:'Crea las diapositivas, empieza la sesión y los alumnos participan desde el móvil escaneando el QR. No se guarda ningún nombre: las respuestas son anónimas y se borran al terminar.',
       t_poll:'Votación', t_nube:'Nube de palabras', t_text:'Respuesta abierta', t_escala:'Escala 1-5', t_preguntes:'Muro de preguntas',
-      add_poll:'+ Votación', add_nube:'+ Nube de palabras', add_text:'+ Respuesta abierta', add_escala:'+ Escala 1-5', add_preguntes:'+ Muro de preguntas',
+      add_poll:'Votación', add_nube:'Nube de palabras', add_text:'Respuesta abierta', add_escala:'Escala 1-5', add_preguntes:'Muro de preguntas',
       pw_label:'Contraseña de profesor', start:'Empezar sesión', export:'Exportar', import:'Importar', example:'Cargar ejemplo',
       saved_note:'Las diapositivas se guardan en este navegador. Exporta un archivo si quieres usarlas en otro ordenador.',
       question:'Pregunta', opts_label:'Opciones (una por línea, de 2 a 10)', max_words:'Palabras máximas por alumno', lo_label:'Etiqueta del 1', hi_label:'Etiqueta del 5',
@@ -58,7 +58,7 @@
       prev:'Anterior', next:'Siguiente', close_resp:'Cerrar respuestas', open_resp:'Abrir respuestas', clear:'Borrar respuestas', auto:'Abrir al cambiar',
       fs:'Pantalla completa', end:'Terminar sesión', qr_alt:'Código QR para entrar en la sesión',
       confirm_clear:'¿Borrar las respuestas de esta diapositiva?', confirm_end:'¿Terminar la sesión? Se borrarán todas las respuestas.',
-      n_students:'{n} alumnos', n_student1:'1 alumno', st_open:'● Respuestas abiertas', st_closed:'○ Respuestas cerradas',
+      n_students:'{n} alumnos', n_student1:'1 alumno', st_open:'Respuestas abiertas', st_closed:'Respuestas cerradas',
       n_part:'{n} participantes', n_part1:'1 participante', mean:'Media {v}', mean_none:'Media –',
       hidden:'(oculto)', hide:'Ocultar', show:'Mostrar', highlight:'Destacar', done:'Respondida', undone:'Desmarcar', votes:'{n} votos', no_q:'Todavía no hay preguntas.',
       lang:'Idioma',
@@ -73,11 +73,11 @@
       err_pw:'Contraseña incorrecta.', err_many:'Demasiados intentos. Espera unos minutos.', err_sessions:'Hay demasiadas sesiones abiertas.', err_noslides:'Añade al menos una diapositiva.', err_bad:'Petición incorrecta.', err_net:'No se ha podido conectar con el servidor.',
       enter_code:'Introduce el código', code_help:'Lo ves en la pantalla del profesor.', enter:'Entrar', code_bad:'Este código no existe.',
       connecting:'Conectando…', code_pill:'Código {c}', reconnecting:'Reconectando…', closed:'Cerrada',
-      waiting:'Esperando al profesor…', sent:'Respuesta enviada ✓', vote_closed:'Votación cerrada', closed_msg:'El profesor ha cerrado las respuestas de esta pregunta.', next_wait:'Espera a la siguiente pregunta.',
-      sent_change:'Respuesta enviada ✓  (puedes cambiarla)', word_n:'Palabra {n}', send:'Enviar', update:'Actualizar', sent_ok:'Enviado ✓',
-      write_ph:'Escribe tu respuesta…', sent_msgs:'Enviado ✓  ({n}/3 mensajes; puedes enviar más)', max_msgs:'Has llegado al máximo de mensajes.',
+      waiting:'Esperando al profesor…', sent:'Respuesta enviada', vote_closed:'Votación cerrada', closed_msg:'El profesor ha cerrado las respuestas de esta pregunta.', next_wait:'Espera a la siguiente pregunta.',
+      sent_change:'Respuesta enviada (puedes cambiarla)', word_n:'Palabra {n}', send:'Enviar', update:'Actualizar', sent_ok:'Enviado',
+      write_ph:'Escribe tu respuesta…', sent_msgs:'Enviado ({n}/3 mensajes; puedes enviar más)', max_msgs:'Has llegado al máximo de mensajes.',
       n_answers:'{n} respuestas', n_answer1:'1 respuesta',
-      ask_ph:'Escribe tu pregunta…', ask_send:'Enviar pregunta', ask_left:'Puedes hacer {n} pregunta(s) más.', ask_none:'Has hecho el máximo de preguntas (3).', vote:'Voto', voted:'Votado', own:'Tu pregunta', answered:'Respondida ✓',
+      ask_ph:'Escribe tu pregunta…', ask_send:'Enviar pregunta', ask_left:'Puedes hacer {n} pregunta(s) más.', ask_none:'Has hecho el máximo de preguntas (3).', vote:'Voto', voted:'Votado', own:'Tu pregunta', answered:'Respondida',
       e_notfound:'Esta sesión no existe', e_full:'Sesión llena', e_ended:'La sesión ha terminado', thanks:'¡Gracias por participar!',
       example_slides:[
         { type:'poll', q:'¿Cómo te sientes hoy?', opts:['Genial','Bien','Normal','Cansado/a'] },
@@ -88,6 +88,27 @@
       ]
     }
   };
+
+  Object.assign(D.ca, {
+    theme_dark:'Mode fosc', theme_light:'Mode clar', cancel:'Cancel·lar', ok:'D\'acord', loading:'Carregant…', retry:'Torna-ho a provar',
+    left_n:'Et queden {n} intents.', left_1:'Et queda 1 intent. Si falles, hauràs d\'esperar.', wait_min:'Massa intents. Torna-ho a provar d\'aquí a {m} min.',
+    login_sub:'Participació en directe', code_lbl:"Codi d'invitació", code_empty:"Escriu el teu codi d'invitació.", slide_n:'Diapositiva {n}', add_title:'Afegeix una diapositiva', move_up:'Pujar', move_down:'Baixar',
+    answered_of:'han respost', of_students:'de {n}', wait_ans:'Esperant respostes…', no_words:'Encara no hi ha paraules.', no_notes:'Encara no hi ha respostes.',
+    confirm_replace_t:'Substituir les diapositives?', confirm_clear_t:'Esborrar les respostes?', confirm_end_t:'Acabar la sessió?', yes_replace:'Substituir', yes_clear:'Esborrar', yes_end:'Acabar',
+    a_confirm_revoke_t:'Revocar el codi?', a_confirm_del_t:'Esborrar el codi?', a_new_t:'Codi nou creat', a_live_n:'{n} en directe', a_sessions_n:'{n} sessions', a_last_n:'Últim ús: {d}', a_exp_n:'Caduca: {d}', a_created_n:'Creat: {d}',
+    a_stat_s:'sessions actives', a_stat_a:'alumnes connectats', a_logout:'Sortir', err_load:'No s\'han pogut carregar els codis.', a_sub:'Codis d\'invitació', a_login_sub:'Administració',
+    codes_title:'Els teus codis', a_hint:'Un codi per persona. Revocar-lo tanca les seves sessions.', step_sent:'Enviat', students_n:'{n} a la sessió'
+  });
+  Object.assign(D.es, {
+    theme_dark:'Modo oscuro', theme_light:'Modo claro', cancel:'Cancelar', ok:'Aceptar', loading:'Cargando…', retry:'Reintentar',
+    left_n:'Te quedan {n} intentos.', left_1:'Te queda 1 intento. Si fallas, tendrás que esperar.', wait_min:'Demasiados intentos. Vuelve a probar dentro de {m} min.',
+    login_sub:'Participación en directo', code_lbl:'Código de invitación', code_empty:'Escribe tu código de invitación.', slide_n:'Diapositiva {n}', add_title:'Añade una diapositiva', move_up:'Subir', move_down:'Bajar',
+    answered_of:'han respondido', of_students:'de {n}', wait_ans:'Esperando respuestas…', no_words:'Todavía no hay palabras.', no_notes:'Todavía no hay respuestas.',
+    confirm_replace_t:'¿Sustituir las diapositivas?', confirm_clear_t:'¿Borrar las respuestas?', confirm_end_t:'¿Terminar la sesión?', yes_replace:'Sustituir', yes_clear:'Borrar', yes_end:'Terminar',
+    a_confirm_revoke_t:'¿Revocar el código?', a_confirm_del_t:'¿Borrar el código?', a_new_t:'Código nuevo creado', a_live_n:'{n} en directo', a_sessions_n:'{n} sesiones', a_last_n:'Último uso: {d}', a_exp_n:'Caduca: {d}', a_created_n:'Creado: {d}',
+    a_stat_s:'sesiones activas', a_stat_a:'alumnos conectados', a_logout:'Salir', err_load:'No se han podido cargar los códigos.', a_sub:'Códigos de invitación', a_login_sub:'Administración',
+    codes_title:'Tus códigos', a_hint:'Un código por persona. Revocarlo cierra sus sesiones.', step_sent:'Enviado', students_n:'{n} en la sesión'
+  });
   var lang = 'ca';
   try { lang = localStorage.getItem('sondeo.lang') || ''; } catch(_) {}
   if (!D[lang]) lang = /^es/i.test(navigator.language || '') ? 'es' : 'ca';

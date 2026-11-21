@@ -2,43 +2,49 @@
 <html lang="ca">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0d1a2a">
 <meta name="robots" content="noindex">
 <title>Sondeo · Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/style.css">
-<style>
-.wrap{max-width:1100px}
-.f{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:10px 0 14px}
-.f label{flex:1 1 220px}
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.92rem}
-th,td{padding:10px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--muted);font-weight:700;font-size:.8rem}
-.mono{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.08em;font-weight:700}
-.st{padding:2px 10px;border-radius:99px;font-size:.78rem;border:1px solid var(--line)}
-.st.actiu{background:rgba(46,204,113,.18);border-color:var(--ok)}
-.st.revocat,.st.caducat{background:rgba(229,100,90,.15);border-color:var(--bad)}
-.lk{background:none;border:0;color:var(--accent);cursor:pointer;padding:2px 6px}
-.lk.r{color:#ffb3ad}
-.nou{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px;margin-bottom:14px;border:1.5px solid var(--accent);border-radius:var(--radius);background:rgba(176,139,224,.15)}
-.nou .mono{font-size:1.8rem}
-</style>
+<link rel="stylesheet" href="/dc/fuentes/fuentes.css">
+<link rel="stylesheet" href="/dc/tokens.css">
+<link rel="stylesheet" href="/dc/base.css">
+<link rel="stylesheet" href="/app.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script src="/tema.js"></script>
 </head>
-<body>
-<header class="top"><h1 data-i="a_title"></h1><span style="display:flex;gap:10px;align-items:center"><span class="pill" id="status"></span><span class="lang" id="lang"></span></span></header>
-<div class="wrap">
-  <div class="f">
-    <label><span class="l" data-i="a_person" style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:4px"></span><input type="text" id="et" maxlength="60" autocomplete="off"></label>
-    <label style="flex:0 1 200px"><span class="l" data-i="a_expires" style="display:block;font-size:.82rem;color:var(--muted);margin-bottom:4px"></span><input type="date" id="cad"></label>
-    <button class="btn" id="crea" data-i="a_create"></button>
+<body class="dc-body">
+<header class="dc-header">
+  <a class="dc-brand" href="/admin"><span class="dc-brand__tile"><span class="dc-icon" data-icon="chart" aria-hidden="true"></span></span><span>Sondeo</span></a>
+  <div class="dc-header__actions" id="tools"></div>
+</header>
+<main class="sd-wrap">
+  <div>
+    <h1 data-i="a_sub"></h1>
+    <p class="dc-muted" data-i="a_hint"></p>
   </div>
-  <p class="msg" id="err" role="alert" style="color:#ffb3ad;min-height:1.3em"></p>
+  <div class="sd-stats" id="stats" aria-live="polite"></div>
+  <form class="dc-card sd-admin-form" id="cform" novalidate>
+    <div class="dc-field"><label class="dc-label" for="et" data-i="a_person"></label><input class="dc-input" type="text" id="et" maxlength="60" autocomplete="off" aria-describedby="err"></div>
+    <div class="dc-field"><label class="dc-label" for="cad" data-i="a_expires"></label><input class="dc-input" type="date" id="cad"></div>
+    <button class="dc-btn dc-btn--primary" id="crea" type="submit"><span class="dc-icon" data-icon="plus" aria-hidden="true"></span><span data-i="a_create"></span></button>
+  </form>
+  <div id="err" class="sd-msg" aria-live="assertive"></div>
   <div id="nou"></div>
-  <div class="tw" id="tab"></div>
-</div>
+  <section aria-labelledby="ct">
+    <h2 class="dc-card__title" id="ct" data-i="codes_title"></h2>
+    <div class="sd-codes" id="codes"></div>
+    <div class="dc-state" id="empty" hidden><span class="dc-state__icon"><span class="dc-icon" data-icon="key" aria-hidden="true"></span></span><p class="dc-state__title" data-i="a_none"></p></div>
+  </section>
+</main>
+<script src="/dc/iconos/iconos.js"></script>
+<script src="/dc/base.js"></script>
 <script src="/i18n.js"></script>
+<script src="/ui.js"></script>
 <script src="/admin.js"></script>
 </body>
 </html>

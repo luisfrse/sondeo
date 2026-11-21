@@ -1,114 +1,154 @@
-(function(){
+(function () {
   'use strict';
-  var m = document.getElementById('m'), st = document.getElementById('st');
-  var t = function(k, v){ return I18N.t(k, v); };
+  var m = document.getElementById('m');
+  var t = function (k, v) { return I18N.t(k, v); };
+  var h = UI.h, icon = UI.icon;
   var code = (location.pathname.match(/\/s\/(\d{5})/) || [])[1];
-  var cid; try { cid = localStorage.getItem('sondeo.cid'); if(!cid){ cid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('sondeo.cid', cid); } } catch(_) { cid = Math.random().toString(36).slice(2); }
-  function el(c, cls, txt){ var e = document.createElement(c); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; }
+  var cid; try { cid = localStorage.getItem('sondeo.cid'); if (!cid) { cid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('sondeo.cid', cid); } } catch (_) { cid = Math.random().toString(36).slice(2); }
 
   var ws, state = null, mine = null, qa = [], count = 0, retry = 0, ended = null, connected = false, localAns = {}, typed = '';
-  function pill(){
-    if(ended){ st.textContent = t('closed'); st.className = 'pill'; return; }
-    st.textContent = code ? (connected ? t('code_pill', { c: code }) : (retry ? t('reconnecting') : t('connecting'))) : '';
-    st.className = 'pill' + (connected ? ' on' : '');
-  }
-  function langButtons(){
-    var box = document.getElementById('lang'); box.innerHTML = '';
-    I18N.langs.forEach(function(l){ var b = el('button', I18N.lang === l ? 'on' : '', l.toUpperCase()); b.type = 'button'; b.setAttribute('aria-label', t('lang') + ' ' + l); b.onclick = function(){ I18N.set(l); langButtons(); pill(); render(); }; box.appendChild(b); });
+  var V = null, curKey = '';
+
+  var redrawTools = UI.tools(document.getElementById('tools'), function () { curKey = ''; render(); });
+  document.getElementById('tools').__extra = function () {
+    if (!code) return [];
+    var txt = ended ? t('closed') : connected ? t('code_pill', { c: code }) : (retry ? t('reconnecting') : t('connecting'));
+    return [h('span', { class: 'dc-chip dc-chip--dot ' + (connected && !ended ? 'dc-chip--ok' : 'dc-chip--warn'), role: 'status', text: txt })];
+  };
+  function pill() { redrawTools(); }
+
+  /* ---------- entrar con el codigo de la sesion ---------- */
+  function joinForm() {
+    var inp = h('input', { class: 'dc-input dc-input--code', id: 'jc', type: 'text', inputmode: 'numeric', maxlength: 5, placeholder: '12345', autocomplete: 'off', 'aria-describedby': 'jerr' });
+    var err = h('div', { id: 'jerr', class: 'sd-msg', 'aria-live': 'assertive' });
+    var b = h('button', { type: 'submit', class: 'dc-btn dc-btn--primary dc-btn--lg dc-btn--block', text: t('enter') });
+    var form = h('form', { class: 'sd-join', novalidate: true }, h('h1', { text: t('enter_code') }), h('p', { class: 'dc-muted', text: t('code_help') }),
+      h('div', { class: 'dc-field' }, h('label', { class: 'dc-label dc-sr-only', for: 'jc', text: t('enter_code') }), inp), err, b);
+    function go() {
+      var c = inp.value.replace(/\D/g, '');
+      if (c.length !== 5) { err.replaceChildren(UI.alertBox('danger', t('code_bad'))); inp.setAttribute('aria-invalid', 'true'); inp.focus(); return; }
+      b.setAttribute('aria-busy', 'true'); b.disabled = true;
+      fetch('/api/exists?c=' + c).then(function (r) { return r.json(); }).then(function (j) {
+        if (j.ok) location.href = '/s/' + c;
+        else { err.replaceChildren(UI.alertBox('danger', t('code_bad'))); inp.setAttribute('aria-invalid', 'true'); inp.focus(); }
+      }).catch(function () { err.replaceChildren(UI.alertBox('danger', t('err_net'))); }).then(function () { b.removeAttribute('aria-busy'); b.disabled = false; });
+    }
+    form.addEventListener('submit', function (e) { e.preventDefault(); go(); });
+    inp.addEventListener('input', function () { inp.value = inp.value.replace(/\D/g, '').slice(0, 5); inp.removeAttribute('aria-invalid'); if (inp.value.length === 5) go(); });
+    return { root: form, focus: inp };
   }
 
-  function joinForm(){
-    m.innerHTML = '';
-    var box = el('div', 'joinbox'); box.appendChild(el('h2', '', t('enter_code'))); box.appendChild(el('p', 'muted', t('code_help')));
-    var inp = el('input'); inp.setAttribute('inputmode', 'numeric'); inp.maxLength = 5; inp.placeholder = '12345'; inp.autocomplete = 'off'; box.appendChild(inp);
-    var e = el('p', 'muted', ''); e.style.minHeight = '1.4em'; box.appendChild(e);
-    var b = el('button', 'btn', t('enter')); b.type = 'button'; box.appendChild(b); m.appendChild(box);
-    function go(){ var c = inp.value.replace(/\D/g, ''); fetch('/api/exists?c=' + c).then(function(r){ return r.json(); }).then(function(j){ if(j.ok) location.href = '/s/' + c; else e.textContent = t('code_bad'); }); }
-    b.onclick = go; inp.addEventListener('keydown', function(ev){ if(ev.key === 'Enter') go(); });
-  }
-
-  function connect(){
+  /* ---------- conexion ---------- */
+  function connect() {
     ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-    ws.onopen = function(){ retry = 0; connected = true; ws.send(JSON.stringify({ t: 'hello', code: code, cid: cid })); pill(); };
-    ws.onmessage = function(ev){
+    ws.onopen = function () { retry = 0; connected = true; ws.send(JSON.stringify({ t: 'hello', code: code, cid: cid })); pill(); };
+    ws.onmessage = function (ev) {
       var d = JSON.parse(ev.data);
-      if(d.t === 'state'){ var ch = !state || state.idx !== d.idx; state = d; if(ch){ mine = null; qa = []; } render(); }
-      else if(d.t === 'mine'){ if(state && state.slide && state.slide.id === d.id){ mine = d.v; render(); } }
-      else if(d.t === 'ack'){ mine = d.v; render(); }
-      else if(d.t === 'qa'){ if(state && state.slide && state.slide.id === d.id){ qa = d.list; renderQA(); } }
-      else if(d.t === 'count'){ count = d.total; var c = document.getElementById('cnt'); if(c) c.textContent = cntTxt(); }
-      else if(d.t === 'limit'){ var o = document.getElementById('ok'); if(o) o.textContent = t(state && state.slide && state.slide.type === 'preguntes' ? 'ask_none' : 'max_msgs'); }
-      else if(d.t === 'ended'){ ended = d.why; render(); pill(); }
+      if (d.t === 'state') { var ch = !state || state.idx !== d.idx; state = d; if (ch) { mine = null; qa = []; } render(); }
+      else if (d.t === 'mine') { if (state && state.slide && state.slide.id === d.id) { mine = d.v; update(); } }
+      else if (d.t === 'ack') { mine = d.v; update(); }
+      else if (d.t === 'qa') { if (state && state.slide && state.slide.id === d.id) { qa = d.list; renderQA(); } }
+      else if (d.t === 'count') { count = d.total; if (V && V.cnt) V.cnt.textContent = cntTxt(); }
+      else if (d.t === 'limit') { if (V && V.ok) setOk('warn', t(state && state.slide && state.slide.type === 'preguntes' ? 'ask_none' : 'max_msgs')); }
+      else if (d.t === 'ended') { ended = d.why; render(); pill(); }
     };
-    ws.onclose = function(){ connected = false; if(ended) return; retry++; pill(); setTimeout(connect, Math.min(5000, 600 * retry)); };
+    ws.onclose = function () { connected = false; if (ended) return; retry++; pill(); setTimeout(connect, Math.min(5000, 600 * retry)); };
   }
-  function send(o){ if(ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
-  function cntTxt(){ return count ? (count === 1 ? t('n_answer1') : t('n_answers', { n: count })) : ''; }
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  function cntTxt() { return count ? (count === 1 ? t('n_answer1') : t('n_answers', { n: count })) : ''; }
+  function setOk(kind, text) { if (!V || !V.ok) return; V.ok.replaceChildren(text ? UI.alertBox(kind, text, 'status') : ''); }
 
-  function render(){
-    m.innerHTML = '';
-    if(!code){ joinForm(); return; }
-    if(ended){ var w0 = el('div', 'wait'); w0.appendChild(el('h2', '', ended === 'notfound' ? t('e_notfound') : ended === 'full' ? t('e_full') : t('e_ended'))); w0.appendChild(el('p', 'muted', t('thanks'))); m.appendChild(w0); return; }
+  /* ---------- pantallas: se construyen una vez por diapositiva y despues solo se actualizan sus partes (no se pierde lo escrito ni salta la pagina) ---------- */
+  function keyNow() {
+    if (!code) return 'join';
+    if (ended) return 'ended:' + ended;
     var s = state && state.slide;
-    if(!s || !state.open){
-      var w = el('div', 'wait'); w.appendChild(el('div', 'dot'));
-      w.appendChild(el('h2', '', s ? (mine ? t('sent') : t('vote_closed')) : t('waiting')));
-      if(s) w.appendChild(el('p', 'muted', mine ? t('next_wait') : t('closed_msg')));
-      m.appendChild(w);
-      if(s && s.type === 'preguntes' && qa.length){ var l0 = el('div', 'qlist'); l0.id = 'qlist'; m.appendChild(l0); renderQA(true); }
-      return;
-    }
-    m.appendChild(el('h2', 'q', s.q || t('untitled')));
-    var ok = el('p', 'ok'); ok.id = 'ok';
-    if(s.type === 'poll'){
-      s.opts.forEach(function(o, i){ var b = el('button', 'opt' + (mine === i ? ' sel' : ''), o); b.type = 'button'; b.onclick = function(){ send({ t: 'answer', id: s.id, v: i }); }; m.appendChild(b); });
-      ok.textContent = mine != null ? t('sent_change') : '';
-    } else if(s.type === 'escala'){
-      var g = el('div', 'scale'); for(var i = 1; i <= 5; i++){ (function(i){ var b = el('button', mine === i ? 'sel' : '', i); b.type = 'button'; b.onclick = function(){ send({ t: 'answer', id: s.id, v: i }); }; g.appendChild(b); })(i); }
-      m.appendChild(g); var e = el('div', 'ends'); e.appendChild(el('span', '', s.lo || '1')); e.appendChild(el('span', '', s.hi || '5')); m.appendChild(e);
-      ok.textContent = mine != null ? t('sent_change') : '';
-    } else if(s.type === 'nube'){
-      var ins = [];
-      for(var k = 0; k < s.max; k++){ var r = el('div', 'row'), inp = el('input'); inp.type = 'text'; inp.maxLength = 30; inp.placeholder = t('word_n', { n: k + 1 }); inp.autocomplete = 'off'; inp.value = (localAns[s.id] || [])[k] || ''; r.appendChild(inp); m.appendChild(r); ins.push(inp); }
-      var b = el('button', 'btn', mine != null ? t('update') : t('send')); b.type = 'button';
-      b.onclick = function(){ var v = ins.map(function(x){ return x.value; }).filter(function(x){ return x.trim(); }); localAns[s.id] = ins.map(function(x){ return x.value; }); if(v.length) send({ t: 'answer', id: s.id, v: v }); };
-      m.appendChild(b); ok.textContent = mine != null ? t('sent_ok') : '';
-    } else if(s.type === 'preguntes'){
-      var left = 3 - (mine || 0);
-      if(left > 0){
-        var ta = el('textarea'); ta.maxLength = 200; ta.placeholder = t('ask_ph'); ta.value = typed; ta.oninput = function(){ typed = ta.value; }; m.appendChild(ta);
-        var bq = el('button', 'btn', t('ask_send')); bq.type = 'button'; bq.style.marginTop = '8px';
-        bq.onclick = function(){ if(ta.value.trim()){ send({ t: 'answer', id: s.id, v: ta.value }); typed = ''; ta.value = ''; } }; m.appendChild(bq);
-        ok.textContent = t('ask_left', { n: left });
-      } else ok.textContent = t('ask_none');
-      m.appendChild(ok);
-      var ql = el('div', 'qlist'); ql.id = 'qlist'; m.appendChild(ql); renderQA();
-      return;
-    } else {
-      var ta2 = el('textarea'); ta2.maxLength = 240; ta2.placeholder = t('write_ph'); m.appendChild(ta2);
-      var cc = el('div', 'cnt', '');
-      ta2.oninput = function(){ cc.textContent = ta2.value.length + '/240'; }; m.appendChild(cc);
-      var b2 = el('button', 'btn', t('send')); b2.type = 'button';
-      b2.onclick = function(){ if(ta2.value.trim()){ send({ t: 'answer', id: s.id, v: ta2.value }); ta2.value = ''; cc.textContent = ''; } };
-      m.appendChild(b2); ok.textContent = mine ? t('sent_msgs', { n: mine }) : '';
-    }
-    m.appendChild(ok);
-    var c = el('div', 'cnt', cntTxt()); c.id = 'cnt'; m.appendChild(c);
+    if (!s || !state.open) return 'wait:' + (s ? s.id : 'none');
+    return 'q:' + s.id + ':' + s.type;
   }
-  function renderQA(readonly){
-    var box = document.getElementById('qlist'); if(!box) return;
-    box.innerHTML = '';
-    var open = state && state.open && !readonly;
-    qa.forEach(function(q){
-      var r = el('div', 'qrow' + (q.done ? ' done' : '')), tx = el('div', '', q.t);
-      if(q.own || q.done){ tx.appendChild(el('small', '', q.done ? t('answered') : t('own'))); }
-      r.appendChild(tx);
-      var b = el('button', 'vb' + (q.me ? ' sel' : ''), '▲ ' + q.v); b.type = 'button'; b.setAttribute('aria-label', q.me ? t('voted') : t('vote'));
-      if(q.own || !open) b.disabled = true; else b.onclick = function(){ send({ t: 'vote', id: state.slide.id, q: q.id }); };
-      r.appendChild(b); box.appendChild(r);
+  function build(key) {
+    var s = state && state.slide; V = {};
+    if (key === 'join') { var j = joinForm(); m.replaceChildren(j.root); V.focus = j.focus; return; }
+    if (key.indexOf('ended:') === 0) {
+      m.replaceChildren(h('div', { class: 'sd-wait' }, h('span', { class: 'dc-state__icon' }, icon('check-circle')), h('h1', { text: ended === 'notfound' ? t('e_notfound') : ended === 'full' ? t('e_full') : t('e_ended') }), h('p', { class: 'dc-muted', text: t('thanks') })));
+      return;
+    }
+    if (key.indexOf('wait:') === 0) {
+      V.title = h('h1'); V.sub = h('p', { class: 'dc-muted' }); V.qlist = h('div', { class: 'sd-qlist' });
+      m.replaceChildren(h('div', { class: 'sd-wait' }, h('span', { class: 'sd-pulse' }, icon('clock', 'dc-icon--lg')), V.title, V.sub), V.qlist);
+      return;
+    }
+    var q = h('h1', { class: 'sd-q', text: s.q || t('untitled') }); q.style.fontSize = 'var(--dc-fs-xl)'; q.style.marginBottom = 'var(--dc-s-5)';
+    V.ok = h('div', { class: 'sd-ok', role: 'status' }); V.cnt = h('div', { class: 'sd-cnt', text: cntTxt() });
+    var root = [q];
+    if (s.type === 'poll') {
+      V.opts = s.opts.map(function (o, i) { var b = h('button', { type: 'button', class: 'sd-opt', 'aria-pressed': 'false', onclick: function () { send({ t: 'answer', id: s.id, v: i }); } }, h('span', { text: o }), icon('check')); root.push(b); return b; });
+    } else if (s.type === 'escala') {
+      V.opts = []; var g = h('div', { class: 'sd-scale5', role: 'group', 'aria-label': s.q });
+      for (var i = 1; i <= 5; i++) (function (i) { var b = h('button', { type: 'button', class: 'sd-opt', 'aria-pressed': 'false', text: String(i), onclick: function () { send({ t: 'answer', id: s.id, v: i }); } }); V.opts.push(b); g.appendChild(b); })(i);
+      root.push(g, h('div', { class: 'sd-ends' }, h('span', { text: s.lo || '1' }), h('span', { text: s.hi || '5' })));
+    } else if (s.type === 'nube') {
+      V.ins = []; var fl = h('div', { class: 'sd-fields' });
+      for (var k = 0; k < s.max; k++) { var inp = h('input', { type: 'text', class: 'dc-input', maxlength: 30, autocomplete: 'off', 'aria-label': t('word_n', { n: k + 1 }), placeholder: t('word_n', { n: k + 1 }) }); inp.value = (localAns[s.id] || [])[k] || ''; fl.appendChild(inp); V.ins.push(inp); }
+      V.btn = h('button', { type: 'button', class: 'dc-btn dc-btn--primary dc-btn--lg dc-btn--block', onclick: function () {
+        var v = V.ins.map(function (x) { return x.value; }).filter(function (x) { return x.trim(); }); localAns[s.id] = V.ins.map(function (x) { return x.value; }); if (v.length) send({ t: 'answer', id: s.id, v: v });
+      } });
+      root.push(fl, V.btn);
+    } else if (s.type === 'preguntes') {
+      V.form = h('div'); V.ta = h('textarea', { class: 'dc-textarea', maxlength: 200, 'aria-label': t('ask_ph'), placeholder: t('ask_ph') }); V.ta.value = typed; V.ta.oninput = function () { typed = V.ta.value; };
+      var bq = h('button', { type: 'button', class: 'dc-btn dc-btn--primary dc-btn--lg dc-btn--block', text: t('ask_send'), onclick: function () { if (V.ta.value.trim()) { send({ t: 'answer', id: s.id, v: V.ta.value }); typed = ''; V.ta.value = ''; } } });
+      V.form.append(V.ta, h('div', { class: 'dc-stack--sm' }), bq); V.qlist = h('div', { class: 'sd-qlist' });
+      root.push(V.form, V.ok, V.qlist);
+    } else {
+      var ta = h('textarea', { class: 'dc-textarea', maxlength: 240, 'aria-label': t('write_ph'), placeholder: t('write_ph') }), cc = h('div', { class: 'sd-cnt' });
+      ta.oninput = function () { cc.textContent = ta.value.length + '/240'; };
+      root.push(ta, cc, h('button', { type: 'button', class: 'dc-btn dc-btn--primary dc-btn--lg dc-btn--block', text: t('send'), onclick: function () { if (ta.value.trim()) { send({ t: 'answer', id: s.id, v: ta.value }); ta.value = ''; cc.textContent = ''; } } }));
+    }
+    if (s.type !== 'preguntes') root.push(V.ok, V.cnt);
+    m.replaceChildren.apply(m, root);
+  }
+  function update() {
+    var s = state && state.slide; if (!V) return;
+    if (curKey.indexOf('wait:') === 0) {
+      V.title.textContent = s ? (mine ? t('sent') : t('vote_closed')) : t('waiting');
+      V.sub.textContent = s ? (mine ? t('next_wait') : t('closed_msg')) : '';
+      if (s && s.type === 'preguntes') renderQA(true); else V.qlist.replaceChildren();
+      return;
+    }
+    if (curKey.indexOf('q:') !== 0) return;
+    if (s.type === 'poll' || s.type === 'escala') {
+      V.opts.forEach(function (b, i) { b.setAttribute('aria-pressed', (s.type === 'poll' ? mine === i : mine === i + 1) ? 'true' : 'false'); });
+      setOk('ok', mine != null ? t('sent_change') : '');
+    } else if (s.type === 'nube') {
+      V.btn.textContent = mine != null ? t('update') : t('send'); setOk('ok', mine != null ? t('sent_ok') : '');
+    } else if (s.type === 'preguntes') {
+      var left = 3 - (mine || 0); V.form.hidden = left <= 0;
+      setOk(left > 0 ? 'info' : 'warn', left > 0 ? t('ask_left', { n: left }) : t('ask_none')); renderQA();
+    } else setOk('ok', mine ? t('sent_msgs', { n: mine }) : '');
+  }
+  function render() {
+    var k = keyNow();
+    if (k !== curKey) { curKey = k; build(k); if (V && V.focus) V.focus.focus(); }
+    update();
+  }
+  function renderQA(readonly) {
+    var box = V && V.qlist; if (!box) return;
+    var open = state && state.open && !readonly, old = box.__k || new Map(), nu = new Map(), prev = null;
+    qa.forEach(function (q) {
+      var n = old.get(q.id);
+      if (!n) { var tx = h('div'), vb = h('button', { type: 'button' }); n = h('div', { class: 'sd-qrow' }, tx, vb); n.__r = { tx: tx, vb: vb }; }
+      var x = n.__r; n.classList.toggle('is-done', !!q.done);
+      var sub = q.done ? t('answered') : q.own ? t('own') : '';
+      x.tx.replaceChildren(q.t); if (sub) x.tx.appendChild(h('small', { text: sub }));
+      x.vb.className = 'sd-vb'; x.vb.setAttribute('aria-pressed', q.me ? 'true' : 'false'); x.vb.setAttribute('aria-label', (q.me ? t('voted') : t('vote')) + ' · ' + q.v);
+      x.vb.replaceChildren(icon('chevron-up'), String(q.v)); x.vb.disabled = !!(q.own || !open);
+      x.vb.onclick = function () { send({ t: 'vote', id: state.slide.id, q: q.id }); };
+      nu.set(q.id, n); var want = prev ? prev.nextSibling : box.firstChild; if (n !== want) box.insertBefore(n, want); prev = n;
     });
+    old.forEach(function (n, k) { if (!nu.has(k)) n.remove(); });
+    box.__k = nu;
   }
 
-  I18N.set(I18N.lang); langButtons(); pill(); render();
-  if(code) connect();
+  I18N.set(I18N.lang); render(); pill();
+  if (code) connect();
 })();

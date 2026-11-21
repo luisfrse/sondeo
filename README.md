@@ -36,3 +36,8 @@ Idiomes: català i castellà (selector CA/ES; per defecte, l'idioma del navegado
 - 5 intents erronis (codi d'invitació o contrasenya d'/admin) cada 15 min per IP; sessions de professor de 12 h; CSP que només permet scripts propis.
 - Límits de ritme de missatges, de mida, de sessions per codi i d'alumnes per sessió.
 - Requereix Node 22 (usa el SQLite integrat, sense dependències natives).
+
+## Disseny comú
+- `public/dc/` és una còpia del disseny comú (`../diseno-comun`); s'actualitza amb `npm run dc` (vegeu `public/dc/VERSION.json`). Estils propis a `public/app.css`; tema clar/fosc automàtic amb selector.
+- `/admin` sense credencials mostra la pantalla d'entrada comuna (contrasenya, intents restants, espera). La contrasenya HTTP bàsica i el token d'API segueixen funcionant per a scripts.
+- `npm run e2e` (Chrome real, comprova el flux, que el DOM no es reconstrueix en actualitzar i que no hi ha violacions de CSP) i `npm run capturas` (390 i 1200 px, clar i fosc, dades inventades a `docs/capturas/`, no versionades).

@@ -4,8 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/token.js && node test/control-sso.js",
-    "test:control-sso": "node test/control-sso.js"
+    "test": "node test/token.js && node test/control-sso.js && node test/admin-entrada.js",
+    "test:control-sso": "node test/control-sso.js",
+    "dc": "node tools/actualizar-diseno-comun.mjs",
+    "capturas": "node tools/capturas.mjs",
+    "e2e": "SIN_CAPTURAS=1 node tools/capturas.mjs"
   },
   "keywords": [],
   "author": "",

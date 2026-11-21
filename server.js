@@ -19,7 +19,7 @@ const MAX_SESSIONS = int('MAX_SESSIONS', 60), MAX_PER_CODE = int('MAX_SESSIONS_P
 let ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 if (!ADMIN_PASSWORD){ ADMIN_PASSWORD = crypto.randomBytes(9).toString('base64url'); console.warn('[Sondeo] ADMIN_PASSWORD no definida. Contrasenya temporal: ' + ADMIN_PASSWORD); }
 const PUB = path.join(__dirname, 'public');
-const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon', '.json':'application/json' };
+const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.png':'image/png', '.ico':'image/x-icon', '.json':'application/json', '.webmanifest':'application/manifest+json', '.woff2':'font/woff2' };
 
 const sessions = new Map();   // code -> session
 
@@ -55,7 +55,9 @@ function lim(max, ms){
   const m = new Map();
   return { blocked: ip => { const e = m.get(ip); if (!e) return false; if (Date.now() - e.t > ms){ m.delete(ip); return false; } return e.n >= max; },
            fail: ip => { if (m.size > 20000) m.clear(); const e = m.get(ip); if (!e || Date.now() - e.t > ms) m.set(ip, { n: 1, t: Date.now() }); else e.n++; },
-           ok: ip => m.delete(ip) };
+           ok: ip => m.delete(ip),
+           left: ip => { const e = m.get(ip); return e && Date.now() - e.t <= ms ? Math.max(0, max - e.n) : max; },
+           wait: ip => { const e = m.get(ip); return e ? Math.max(1, Math.ceil((e.t + ms - Date.now()) / 1000)) : 0; } };
 }
 const limAcces = lim(5, 15 * 60e3);
 const limAdmin = lim(5, 15 * 60e3);   // contrasenyes d'/admin errònies per IP
@@ -183,17 +185,17 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
     res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
 
     if (p === '/api/config'){ return json(res, 200, { contactUrl: CONTACT_URL }); }
 
     if (p === '/api/acceso' && req.method === 'POST'){
       const ip = ipOf(req);
-      if (limAcces.blocked(ip)) return json(res, 429, { err: 'many' });
+      if (limAcces.blocked(ip)) return json(res, 429, { err: 'many', wait: limAcces.wait(ip) });
       const body = JSON.parse(await readBody(req, 2000) || '{}');
       const c = normCodi(body.codi);
       const f = c ? db.prepare('SELECT * FROM codis WHERE codi = ?').get(c) : null;
-      if (!f || estat(f) !== 'actiu'){ limAcces.fail(ip); return json(res, 401, { err: 'code' }); }
+      if (!f || estat(f) !== 'actiu'){ limAcces.fail(ip); return json(res, 401, { err: 'code', left: limAcces.left(ip) }); }
       limAcces.ok(ip);
       const token = crypto.randomBytes(24).toString('hex');
       tokens.set(token, { codiId: f.id, etiqueta: f.etiqueta, exp: Date.now() + 12 * 3600e3 });
@@ -233,11 +235,32 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
 
+    /* --- pantalla de entrada del administrador (misma contrasena y mismo limite de intentos; abre la misma sesion por cookie que el acceso unico) --- */
+    if (p === '/api/admin-entrada/state' && req.method === 'GET'){ const a = adminSesOk(req); return json(res, 200, { authed: a, unlocked: a, hasPin: false, passkeys: 0, configured: true, needsSetup: false }); }
+    if (p === '/api/admin-entrada/login' && req.method === 'POST'){
+      const ipE = ipOf(req);
+      if (limAdmin.blocked(ipE)) return json(res, 429, { error: 'rate', wait: limAdmin.wait(ipE) });
+      const b = JSON.parse(await readBody(req, 2000) || '{}');
+      const okE = typeof b.password === 'string' && safeEq(crypto.createHash('sha256').update(b.password).digest('hex'), crypto.createHash('sha256').update(ADMIN_PASSWORD).digest('hex'));
+      if (!okE){ limAdmin.fail(ipE); return json(res, 401, { error: 'bad', left: limAdmin.left(ipE) }); }
+      limAdmin.ok(ipE);
+      const te = crypto.randomBytes(24).toString('hex'); adminSes.set(te, Date.now() + ADMIN_SES_MS);
+      const httpsE = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Set-Cookie': 'asid=' + te + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ADMIN_SES_MS / 1000) + (httpsE ? '; Secure' : '') });
+      return res.end(JSON.stringify({ ok: true }));
+    }
+    if (p === '/api/admin-entrada/logout' && req.method === 'POST'){
+      const mc = /(?:^|;\s*)asid=([^;]+)/.exec(req.headers.cookie || ''); if (mc) adminSes.delete(decodeURIComponent(mc[1]));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Set-Cookie': 'asid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' });
+      return res.end(JSON.stringify({ ok: true }));
+    }
+
     /* --- administració (Basic auth amb ADMIN_PASSWORD) --- */
     if (p === '/admin' || p.startsWith('/api/admin/')){
       const h = req.headers.authorization || '';
       let okA = adminSesOk(req);      // sessio oberta per l'acces unic de Control
       const ipA = ipOf(req);
+      if (!okA && p === '/admin' && !h && /text\/html/.test(req.headers.accept || '')){ res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(fs.readFileSync(path.join(__dirname, 'views', 'entrada.html'))); }   // sin credenciales y desde un navegador: pantalla de entrada (sin el dialogo del navegador)
       if (limAdmin.blocked(ipA)){ res.writeHead(429, { 'Content-Type': 'text/plain' }); return res.end('Massa intents. Espera uns minuts.'); }
       const viaTok = !!ADMIN_API_TOKEN && /^Bearer /i.test(h) && (p === '/api/admin/codis' || /^\/api\/admin\/codis\/\d+$/.test(p));   // token nomes per a l'API de codis
       if (okA) { /* ja autenticat per cookie */ }
@@ -290,7 +313,7 @@ const server = http.createServer(async (req, res) => {
     if (!full.startsWith(PUB + path.sep) && full !== PUB) { res.writeHead(403); return res.end(); }
     fs.readFile(full, (err, data) => {
       if (err){ res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream', 'Cache-Control': path.extname(full) === '.woff2' ? 'public, max-age=31536000, immutable' : 'no-cache' });
       res.end(data);
     });
   } catch (e){
