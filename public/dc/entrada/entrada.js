@@ -13,7 +13,7 @@
 (function (root) {
   var STR = {
     es: {
-      loading: 'Cargando…', entering: 'Entrando…', retry: 'Reintentar', cancel: 'Cancelar', back: 'Volver', continue: 'Continuar', logout: 'Salir',
+      loading: 'Cargando…', waitKey: 'Esperando la huella… Si no ves el cuadro del sistema, espera un momento o pulsa Cancelar en él y vuelve a intentarlo.', pinAuto: 'Se envía solo al teclear el PIN completo.', entering: 'Entrando…', retry: 'Reintentar', cancel: 'Cancelar', back: 'Volver', continue: 'Continuar', logout: 'Salir',
       offline: 'Sin conexión', offlineText: 'No se puede hablar con el servidor. Comprueba la conexión e inténtalo de nuevo.', serverError: 'El servidor no responde', serverErrorText: 'Algo ha fallado al conectar. Inténtalo de nuevo en un momento.',
       notConfigured: 'Todavía sin configurar', notConfiguredText: 'Esta app aún no tiene contraseña. Defínela en las variables de entorno del servidor y recarga esta página.',
       loginTitle: 'Entrar', password: 'Contraseña', showPassword: 'Mostrar contraseña', hidePassword: 'Ocultar contraseña', capsOn: 'Tienes las mayúsculas activadas.', signIn: 'Entrar', checking: 'Comprobando…',
@@ -31,7 +31,7 @@
       left: function (n) { return n === 1 ? 'Queda 1 intento.' : 'Quedan ' + n + ' intentos.'; }, lastWarn: 'Si fallas otra vez se cerrará la sesión.', min: 'min', sec: 's'
     },
     ca: {
-      loading: 'Carregant…', entering: 'Entrant…', retry: 'Torna-ho a provar', cancel: 'Cancel·la', back: 'Enrere', continue: 'Continua', logout: 'Surt',
+      loading: 'Carregant…', waitKey: 'Esperant l’empremta… Si no veus el quadre del sistema, espera un moment o prem Cancel·la i torna-ho a provar.', pinAuto: 'S’envia sol en teclejar el PIN complet.', entering: 'Entrant…', retry: 'Torna-ho a provar', cancel: 'Cancel·la', back: 'Enrere', continue: 'Continua', logout: 'Surt',
       offline: 'Sense connexió', offlineText: 'No es pot parlar amb el servidor. Comprova la connexió i torna-ho a provar.', serverError: 'El servidor no respon', serverErrorText: 'Alguna cosa ha fallat en connectar. Torna-ho a provar d’aquí a un moment.',
       notConfigured: 'Encara sense configurar', notConfiguredText: 'Aquesta app encara no té contrasenya. Defineix-la a les variables d’entorn del servidor i recarrega aquesta pàgina.',
       loginTitle: 'Entra', password: 'Contrasenya', showPassword: 'Mostra la contrasenya', hidePassword: 'Amaga la contrasenya', capsOn: 'Tens les majúscules activades.', signIn: 'Entra', checking: 'Comprovant…',
@@ -49,7 +49,7 @@
       left: function (n) { return n === 1 ? 'Queda 1 intent.' : 'Queden ' + n + ' intents.'; }, lastWarn: 'Si falles una altra vegada es tancarà la sessió.', min: 'min', sec: 's'
     },
     en: {
-      loading: 'Loading…', entering: 'Signing in…', retry: 'Try again', cancel: 'Cancel', back: 'Back', continue: 'Continue', logout: 'Sign out',
+      loading: 'Loading…', waitKey: 'Waiting for your fingerprint… If you do not see the system dialog, wait a moment or cancel it and try again.', pinAuto: 'It is sent by itself once the full PIN is typed.', entering: 'Signing in…', retry: 'Try again', cancel: 'Cancel', back: 'Back', continue: 'Continue', logout: 'Sign out',
       offline: 'No connection', offlineText: 'Cannot reach the server. Check your connection and try again.', serverError: 'The server is not responding', serverErrorText: 'Something went wrong while connecting. Try again in a moment.',
       notConfigured: 'Not set up yet', notConfiguredText: 'This app has no password yet. Set it in the server environment variables and reload this page.',
       loginTitle: 'Sign in', password: 'Password', showPassword: 'Show password', hidePassword: 'Hide password', capsOn: 'Caps Lock is on.', signIn: 'Sign in', checking: 'Checking…',
@@ -114,7 +114,7 @@
     }
     var norm = function (r) { r = r || {}; var need = Array.isArray(r.need) ? r.need.slice() : (r.need2fa ? ['totp'] : []); return { need: need, recoveryLeft: r.recoveryLeft }; };
     return {
-      state: async function () { var s = await call('/state'); return { authed: !!s.authed, unlocked: !!s.unlocked, hasPin: !!s.hasPin, passkeys: !!(s.passkeys > 0 || s.passkeys === true || s.hasPasskeys), configured: s.configured !== false && s.canLogin !== false, needsSetup: !!s.needsSetup, lockMinutes: s.lockMinutes, totp: s.totp }; },
+      state: async function () { var s = await call('/state'); return { authed: !!s.authed, unlocked: !!s.unlocked, hasPin: !!s.hasPin, passkeys: !!(s.passkeys > 0 || s.passkeys === true || s.hasPasskeys), configured: s.configured !== false && s.canLogin !== false, needsSetup: !!s.needsSetup, lockMinutes: s.lockMinutes, totp: s.totp, pinLength: +s.pinLength > 0 ? +s.pinLength : 0 }; },
       login: async function (password) { return norm(await call('/login', { password: password })); },
       passkeyLogin: async function () { return norm(await call('/webauthn/login/verify', await assertion(await call('/webauthn/login/options', {})))); },
       passkeyStep: async function () { return norm(await call('/login/passkey/verify', await assertion(await call('/login/passkey/options', {})))); },
@@ -144,6 +144,7 @@
     if (PK) B.passkeyLogin = async function (mode) { var r = await PK.login({ mode: mode || 'modal' }); return { need: [], recoveryLeft: undefined, raw: r }; };
     B = Object.assign(B, opts.backend || {});
     var allow = function (m) { return o.modes.indexOf(m) >= 0; };
+    if (PK && allow('passkey') && PK.hasMark()) PK.prepare();       // este dispositivo ya usó la llave: el reto se pide EN PARALELO a /state, no después
     var S = null, autoTried = false, timers = [], keyHandler = null;
 
     document.title = o.app + ' · ' + T.loginTitle;
@@ -173,7 +174,7 @@
     function busy(on, btn) { card.setAttribute('aria-busy', on ? 'true' : 'false'); if (btn) { if (on) btn.setAttribute('aria-busy', 'true'); else btn.removeAttribute('aria-busy'); btn.disabled = !!on; } }
     function errText(e, ctx) {
       var c = e && (e.code || e.message), left = e && e.left != null ? ' ' + T.left(e.left) : '';
-      if (e && e.name === 'PKError' && PK) { var ex = PK.explain(e); return { t: ex.text, title: ex.title, kind: ex.kind === 'cancelled' || ex.kind === 'gesture' || ex.kind === 'timeout' ? 'info' : ex.kind === 'nocred' || ex.kind === 'nouv' ? 'warn' : 'danger', silent: ex.silent }; }
+      if (e && e.name === 'PKError' && PK) { var ex = PK.explain(e); return { t: ex.text, title: ex.title, kind: ex.kind === 'cancelled' || ex.kind === 'gesture' || ex.kind === 'timeout' ? 'info' : ex.kind === 'nocred' || ex.kind === 'nouv' ? 'warn' : 'danger', silent: ex.silent, tip: ex.tip }; }
       if (e && e.name === 'NotAllowedError') return { t: T.passkeyCancelled, kind: 'info' };
       if (e && e.name === 'AbortError') return { t: T.passkeyCancelled, kind: 'info' };
       var map = { bad: T.errBad, pin: T.errPin, code: ctx === 'setup' ? T.errSetupCode : T.errCode, locked: T.errLocked, expired: T.errExpired, revoked: T.errRevoked, needfactor: T.errNeedFactor, nokeys: T.errNoKeys, invalid: T.errInvalid, network: T.errNetwork };
@@ -181,14 +182,16 @@
       var warn = (c === 'pin' || c === 'bad') && e.left === 1 && ctx === 'pin' ? ' ' + T.lastWarn : '';
       return { t: base + (map[c] && c !== 'locked' && c !== 'expired' && c !== 'revoked' ? left : '') + warn, kind: 'danger' };
     }
-    function fail(box, e, ctx) { var r = errText(e, ctx); if (r.silent) return say(box, ''); say(box, r.t, r.kind, r.title); }
+    function fail(box, e, ctx) { var r = errText(e, ctx); if (r.silent) return say(box, ''); say(box, r.tip ? r.t + ' ' + r.tip : r.t, r.kind, r.title); }
+    /* mientras el sistema abre el cuadro de la huella: si tarda, se avisa de que es el sistema (y en Android se explica lo del gestor de contraseñas) */
+    function keyWaiting(box) { var tm = setTimeout(function () { var tip = /Android/.test(navigator.userAgent || '') && PK ? ' ' + PK.tipText() : ''; say(box, T.waitKey + tip, 'info'); }, 2200); return function () { clearTimeout(tm); }; }
     function showPass(input, btn) {
       var on = input.type === 'text'; input.type = on ? 'password' : 'text'; btn.setAttribute('aria-pressed', on ? 'false' : 'true'); btn.setAttribute('aria-label', on ? T.showPassword : T.hidePassword);
       btn.replaceChildren(icon(on ? 'eye' : 'eye-off')); input.focus();
     }
     function passwordField(id, label, opts2) {
       opts2 = opts2 || {};
-      var input = h('input', { class: 'dc-input', id: id, name: opts2.name || 'password', type: 'password', autocomplete: opts2.auto || 'current-password', autocapitalize: 'none', spellcheck: 'false', required: true });
+      var input = h('input', { class: 'dc-input', id: id, name: opts2.name || 'password', type: 'password', autocomplete: opts2.auto || 'current-password', autocapitalize: 'none', spellcheck: 'false', enterkeyhint: opts2.enter || 'go', required: true });
       var eye = h('button', { type: 'button', class: 'dc-btn dc-btn--ghost dc-btn--icon dc-input-group__btn', 'aria-label': T.showPassword, 'aria-pressed': 'false', onclick: function () { showPass(input, eye); } }, icon('eye'));
       var caps = h('p', { class: 'dc-hint dc-entrada__caps', hidden: true, text: T.capsOn });
       input.addEventListener('keyup', function (ev) { if (ev.getModifierState) caps.hidden = !ev.getModifierState('CapsLock'); });
@@ -233,9 +236,9 @@
       var arm = async function () { if (!PK || !key || !strong || card.getAttribute('data-screen') !== 'login') return;     // sin llaves en el servidor no se pide nada (evita un 404 y un aviso inútil)
         disarm(); armed = await PK.startConditional(function (r) { after({ need: [] }); }, function () { /* el autorrelleno es un extra: si falla, se calla (la contraseña y el botón siguen ahí) */ }); };
       var useKey = async function () {
-        say(box, ''); disarm(); keyBtn.setAttribute('aria-busy', 'true'); keyBtn.disabled = true;
-        try { after(await B.passkeyLogin('modal')); }
-        catch (e) { keyBtn.removeAttribute('aria-busy'); keyBtn.disabled = false; if (e && (e.code === 'rate' || e.kind === 'rate')) return waiting(e.wait, login); if (e && e.kind === 'nocred' && PK) PK.clearMark(); fail(box, e); keyBtn.focus(); arm(); }
+        say(box, ''); disarm(); keyBtn.setAttribute('aria-busy', 'true'); keyBtn.disabled = true; var stopW = keyWaiting(box);
+        try { var kr = await B.passkeyLogin('modal'); stopW(); after(kr); }
+        catch (e) { stopW(); keyBtn.removeAttribute('aria-busy'); keyBtn.disabled = false; if (e && (e.code === 'rate' || e.kind === 'rate')) return waiting(e.wait, login); if (e && e.kind === 'nocred' && PK) PK.clearMark(); fail(box, e); keyBtn.focus(); arm(); }
       };
       keyBtn = key ? passkeyBtn(T.passkey, useKey, strong) : null;
       var form = h('form', { class: 'dc-form', novalidate: true, onsubmit: async function (ev) {
@@ -247,6 +250,7 @@
       } }, h('input', { class: 'dc-sr-only', type: 'text', name: 'username', autocomplete: 'username', tabindex: '-1', 'aria-hidden': 'true', value: o.app }), pw.node, box, submit);
       screen('login', [title(T.loginTitle), key ? [keyBtn, h('p', { class: 'dc-entrada__or' }, h('span', { text: T.or }))] : null, form], key && strong && PK && PK.hasMark() ? null : (key && strong ? null : pw.input));
       if (!key || !PK) return;
+      if (strong) PK.prepare();                       // reto listo antes de que el usuario toque nada: el clic llama a WebAuthn sin esperar a la red
       /* 1) aviso automático solo si este dispositivo ya usó la llave en esta app; 2) si no, autorrelleno; una sola vez por carga, sin bucles */
       if (o.autoPasskey && !autoTried && strong && PK.hasMark() && !document.hidden) {
         autoTried = true;
@@ -311,10 +315,19 @@
       }
     }
 
+    /* Longitud del PIN: la manda el servidor (state.pinLength) o se aprende en ESTE dispositivo tras un desbloqueo correcto (solo el número, nunca el PIN).
+       Con la longitud conocida el PIN se envía solo al completarlo. Sin ella (primera vez) hace falta pulsar «Desbloquear»: enviar prefijos gastaría intentos. */
+    var lenKey = 'dc-pinlen:' + (opts.markKey || location.host);
+    function learnedPin() { try { var j = JSON.parse(localStorage.getItem(lenKey) || 'null'); return j && j.n >= 1 && j.n <= 64 ? j : null; } catch (_) { return null; } }
+    function learnPin(v) { try { localStorage.setItem(lenKey, JSON.stringify({ n: v.length, d: /^[0-9]+$/.test(v) })); } catch (_) { /* modo privado */ } }
+    function forgetPin() { try { localStorage.removeItem(lenKey); } catch (_) { /* nada */ } }
+    function buzz() { try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([70, 50, 70]); } catch (_) { /* sin vibración */ } }
+
     function lock() {
       var box = msgBox(), pin = '', working = false, key = offer();
+      if (key && PK) PK.prepare();
       var status = h('p', { class: 'dc-sr-only', role: 'status', 'aria-live': 'polite' });
-      var useKey = async function () { say(box, ''); try { after(await B.passkeyLogin()); } catch (e) { fail(box, e); if (e && e.code === 'rate') waiting(e.wait, lock); } };
+      var useKey = async function () { say(box, ''); var stopW = keyWaiting(box); try { var kr = await B.passkeyLogin(); stopW(); after(kr); } catch (e) { stopW(); fail(box, e); if (e && e.code === 'rate') waiting(e.wait, lock); } };
       var logout = h('button', { type: 'button', class: 'dc-btn dc-btn--ghost dc-btn--block', onclick: async function () { await B.logout(); boot(); } }, S.hasPin && allow('pin') ? T.pinForgot : T.logout);
       var head = title(T.lockTitle, T.lockHint(S.lockMinutes || o.lockMinutes));
       if (!(S.hasPin && allow('pin'))) {
@@ -323,29 +336,36 @@
         return screen('lock', [head, h('p', { class: 'dc-hint', text: T.noPinNoKey }), h('form', { class: 'dc-form', novalidate: true, onsubmit: async function (ev) { ev.preventDefault(); say(box, ''); busy(true, go); try { after(await B.login(pw.input.value)); } catch (e) { busy(false, go); if (e && e.code === 'rate') return waiting(e.wait, lock); fail(box, e); pw.input.select(); } } }, pw.node, box, go), logout], pw.input);
       }
       if (o.pinType === 'text') {
-        var pf = h('input', { class: 'dc-input', id: 'dc-pin', name: 'pin', type: 'password', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', 'aria-label': T.pinTitle });
-        var ub = h('button', { type: 'submit', class: 'dc-btn dc-btn--lg dc-btn--block dc-btn--primary' }, T.pinUnlock);
-        return screen('lock', [head, h('form', { class: 'dc-form', novalidate: true, onsubmit: async function (ev) { ev.preventDefault(); say(box, ''); if (!pf.value) return pf.focus(); busy(true, ub); try { await B.unlock(pf.value); done(); } catch (e) { busy(false, ub); pf.value = ''; if (e && e.code === 'rate') return waiting(e.wait, lock); fail(box, e, 'pin'); if (e && e.code === 'revoked') timers.push(setTimeout(boot, 2200)); pf.focus(); } } },
+        var lp = learnedPin(), pf = h('input', { class: 'dc-input', id: 'dc-pin', name: 'pin', type: 'password', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', enterkeyhint: 'go', inputmode: lp && lp.d ? 'numeric' : null, 'aria-label': T.pinTitle });
+        var ub = h('button', { type: 'submit', class: 'dc-btn dc-btn--lg dc-btn--block dc-btn--primary' }, T.pinUnlock), sendPin = async function () {
+          if (ub.disabled) return; say(box, ''); if (!pf.value) return pf.focus(); var sent = pf.value, byLen = lp && sent.length === lp.n; busy(true, ub);
+          try { await B.unlock(sent); learnPin(sent); done(); } catch (e) { busy(false, ub); pf.value = ''; if (byLen && e && e.code === 'pin') { forgetPin(); lp = null; } buzz(); if (e && e.code === 'rate') return waiting(e.wait, lock); fail(box, e, 'pin'); if (e && e.code === 'revoked') timers.push(setTimeout(boot, 2200)); pf.focus(); }
+        };
+        pf.addEventListener('input', function () { if (lp && pf.value.length === lp.n) sendPin(); });
+        return screen('lock', [head, h('form', { class: 'dc-form', novalidate: true, onsubmit: function (ev) { ev.preventDefault(); sendPin(); } },
           h('div', { class: 'dc-field' }, h('label', { class: 'dc-label', for: 'dc-pin', text: T.pinTitle }), pf), box, ub), key ? passkeyBtn(T.useKey, useKey, false) : null, logout], pf);
       }
       /* teclado numérico */
       var dots = h('div', { class: 'dc-dots', 'aria-hidden': 'true' });
+      var lpn = learnedPin(), auto = S.pinLength > 0 ? S.pinLength : (o.pinFixed ? o.pinMax : (lpn && lpn.d && lpn.n >= o.pinMin && lpn.n <= o.pinMax ? lpn.n : 0)), fromLearned = !(S.pinLength > 0) && !o.pinFixed && auto > 0, maxLen = Math.max(o.pinMax, auto);
       var paint = function () {
         var n = Math.max(o.pinMin, Math.min(o.pinMax, pin.length)); if (pin.length > n) n = pin.length;
-        dots.replaceChildren.apply(dots, Array.from({ length: o.pinFixed ? o.pinMax : n }, function (_, i) { return h('i', { class: i < pin.length ? 'is-on' : '' }); }));
+        dots.replaceChildren.apply(dots, Array.from({ length: auto || n }, function (_, i) { return h('i', { class: i < pin.length ? 'is-on' : '' }); }));
         status.textContent = T.pinDigits(pin.length); okBtn.disabled = working || pin.length < o.pinMin;
       };
       var okBtn = h('button', { type: 'button', class: 'dc-btn dc-btn--lg dc-btn--block dc-btn--primary', onclick: function () { submit(); } }, T.pinUnlock);
       var submit = async function () {
-        if (working || pin.length < o.pinMin) return; working = true; say(box, ''); card.setAttribute('aria-busy', 'true'); pad.classList.add('is-busy'); paint();
-        try { await B.unlock(pin); done(); }
+        if (working || pin.length < o.pinMin) return; working = true; var sent = pin; say(box, ''); card.setAttribute('aria-busy', 'true'); pad.classList.add('is-busy'); paint();
+        try { await B.unlock(sent); learnPin(sent); done(); }
         catch (e) {
           working = false; pin = ''; card.setAttribute('aria-busy', 'false'); pad.classList.remove('is-busy'); paint();
+          if (fromLearned && e && e.code === 'pin') { forgetPin(); auto = 0; fromLearned = false; paint(); }   // la longitud aprendida ya no vale (¿PIN cambiado?): se vuelve a pedir «Desbloquear»
+          buzz();
           if (e && e.code === 'rate') return waiting(e.wait, lock);
           card.classList.remove('dc-shake'); void card.offsetWidth; card.classList.add('dc-shake'); fail(box, e, 'pin'); if (e && e.code === 'revoked') timers.push(setTimeout(boot, 2200));
         }
       };
-      var press = function (d) { if (working || pin.length >= o.pinMax) return; pin += d; paint(); if (o.pinFixed && pin.length === o.pinMax) submit(); };
+      var press = function (d) { if (working || pin.length >= maxLen) return; pin += d; paint(); if (auto && pin.length === auto) submit(); };
       var del = function () { if (working) return; pin = pin.slice(0, -1); paint(); };
       var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(function (d) { return h('button', { type: 'button', class: 'dc-pad__key', 'aria-label': d, onclick: function () { press(d); } }, d); });
       var pad = h('div', { class: 'dc-pad', role: 'group', 'aria-label': T.pinKeys }, keys,
@@ -357,7 +377,7 @@
         if (/^\d$/.test(ev.key)) { ev.preventDefault(); press(ev.key); } else if (ev.key === 'Backspace') { ev.preventDefault(); del(); } else if (ev.key === 'Escape') { pin = ''; paint(); } else if (ev.key === 'Enter' && t !== 'BUTTON') { ev.preventDefault(); submit(); }
       };
       rootEl.addEventListener('keydown', keyHandler);
-      screen('lock', [head, h('p', { class: 'dc-entrada__pinlabel', text: T.pinTitle }), dots, status, box, pad, o.pinFixed ? null : okBtn, logout]);
+      screen('lock', [head, h('p', { class: 'dc-entrada__pinlabel', text: T.pinTitle }), dots, status, box, pad, okBtn, logout]);
       paint();
     }
 
